@@ -6,9 +6,9 @@
 #include <stdexcept>
 
 static size_t
-th06_decrypt_impl(std::vector<uint8_t>& buffer, uint8_t key) {
-	size_t i = 0;
-	for(; i < buffer.size(); i++) {
+th06_decrypt_impl(uint8_t* buffer, const size_t length, uint8_t key) {
+	size_t i;
+	for(i = 0; i < length; i++) {
 		buffer[i] -= key;
 		key += 7;
 	}
@@ -129,26 +129,12 @@ th_unlzss_impl(const uint8_t* in, size_t len, lzss_params_t& params = ZUN_LZSS_P
 
 static PyObject*
 th06_decrypt(PyObject* self, PyObject* args) {
-	try {
-		Py_buffer buf;
-		Py_ssize_t key;
-		if(!PyArg_ParseTuple(args, "y*n", &buf, &key) || buf.readonly)
-			return NULL;
-
-		std::vector<uint8_t> _buf((uint8_t*)buf.buf, (uint8_t*)buf.buf + buf.len);
-		try {
-			th06_decrypt_impl(_buf, static_cast<uint8_t>(key));
-		} catch(std::out_of_range e) {
-			PyErr_SetString(PyExc_IndexError, e.what());
-			return NULL;
-		}
-		assert(buf.len == _buf.size());
-		memcpy(buf.buf, _buf.data(), buf.len);
-		Py_RETURN_NONE;
-	} catch(std::bad_alloc e) {
-		PyErr_SetString(PyExc_MemoryError, e.what());
+	Py_buffer buf;
+	Py_ssize_t key;
+	if(!PyArg_ParseTuple(args, "y*n", &buf, &key) || buf.readonly)
 		return NULL;
-	}
+	th06_decrypt_impl(static_cast<uint8_t*>(buf.buf), buf.len, static_cast<uint8_t>(key));
+	Py_RETURN_NONE;
 }
 
 static PyObject *
