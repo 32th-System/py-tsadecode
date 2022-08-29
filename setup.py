@@ -10,6 +10,5 @@ setup(name="tsadecode",
       ext_modules=[Extension(
         name="tsadecode",
         sources=["tsadecode.cpp"],
-        libraries=['python310'],
         language="C++"
       )])

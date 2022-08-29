@@ -148,14 +148,14 @@ th_decrypt(PyObject* self, PyObject* args) {
 		std::vector<uint8_t> _buf((uint8_t*)buf.buf, (uint8_t*)buf.buf + buf.len);
 		try {
 			th_decrypt_impl(_buf, block_size, static_cast<uint8_t>(base), static_cast<uint8_t>(add));
-		} catch(std::out_of_range e) {
+		} catch(std::out_of_range& e) {
 			PyErr_SetString(PyExc_IndexError, e.what());
 			return NULL;
 		}
 		assert(buf.len == _buf.size());
 		memcpy(buf.buf, _buf.data(), buf.len);
 		Py_RETURN_NONE;
-	} catch(std::bad_alloc e) {
+	} catch(std::bad_alloc& e) {
 		PyErr_SetString(PyExc_MemoryError, e.what());
 		return NULL;
 	}
@@ -172,11 +172,11 @@ th_unlzss(PyObject* self, PyObject* args) {
 		try {
 			auto ret = th_unlzss_impl(static_cast<uint8_t*>(data.buf), data.len);
 			return Py_BuildValue("y#", ret.data(), ret.size());
-		} catch(std::logic_error e) {
+		} catch(std::logic_error& e) {
 			PyErr_SetString(PyExc_ValueError, e.what());
 		}
 
-	} catch(std::bad_alloc e) {
+	} catch(std::bad_alloc& e) {
 		PyErr_SetString(PyExc_MemoryError, e.what());
 		return NULL;
 	}	
