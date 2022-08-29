@@ -10,5 +10,6 @@ setup(name="tsadecode",
       ext_modules=[Extension(
         name="tsadecode",
         sources=["tsadecode.cpp"],
-        language="C++"
+        language="C++",
+        extra_link_args=["-lstdc++"]
       )])
