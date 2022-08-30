@@ -52,8 +52,8 @@ struct lzss_params_t {
 
 lzss_params_t ZUN_LZSS_PARAMS = { 13, 4, 3, 1 };
 
-bool
-th_unlzss_impl(const uint8_t* in, size_t len, std::vector<uint8_t> out_bytes, lzss_params_t& params = ZUN_LZSS_PARAMS) {
+std::vector<uint8_t>
+th_unlzss_impl(const uint8_t* in, size_t len, lzss_params_t& params = ZUN_LZSS_PARAMS) {
     struct bit_iter_t {
         // Huge optimization potential: using `in` ànd performing bit
         // operations on it's bytes directly. This doesn't matter for now
@@ -92,9 +92,10 @@ th_unlzss_impl(const uint8_t* in, size_t len, std::vector<uint8_t> out_bytes, lz
     std::vector<uint8_t> history(1 << params.index_size);
     size_t history_write_index = params.initial_write_index;
 
+    std::vector<uint8_t> output_bytes;
 
     auto put_output_byte = [&](uint8_t byte) {
-        out_bytes.push_back(byte);
+        output_bytes.push_back(byte);
         history[history_write_index] = byte;
         history_write_index += 1;
         history_write_index %= history.size();
@@ -120,10 +121,10 @@ th_unlzss_impl(const uint8_t* in, size_t len, std::vector<uint8_t> out_bytes, lz
     }
 
     if(input_bits.data.size() != input_bits.idx) {
-		return false;
+		throw std::logic_error("Error: the provided LZSS data is invalid or the LZSS parameters are wrong");
 	}
 
-    return true;
+    return output_bytes;
 }
 
 static PyObject*
@@ -136,33 +137,49 @@ th06_decrypt(PyObject* self, PyObject* args) {
 	Py_RETURN_NONE;
 }
 
-static PyObject*
+static PyObject *
 th_decrypt(PyObject* self, PyObject* args) {
-	Py_buffer buf;
-	Py_ssize_t block_size, base, add;
-	if(!PyArg_ParseTuple(args, "y*nnn", &buf, &block_size, &base, &add) || buf.readonly)
-		return NULL;
+	try {
+		Py_buffer buf;
+		Py_ssize_t block_size, base, add;
+		if(!PyArg_ParseTuple(args, "y*nnn", &buf, &block_size, &base, &add) || buf.readonly)
+			return NULL;
 
-	std::vector<uint8_t> _buf((uint8_t*)buf.buf, (uint8_t*)buf.buf + buf.len);
-	th_decrypt_impl(_buf, block_size, static_cast<uint8_t>(base), static_cast<uint8_t>(add));
-	assert(buf.len == _buf.size());
-	memcpy(buf.buf, _buf.data(), buf.len);
-	Py_RETURN_NONE;
-}
-
-static PyObject*
-th_unlzss(PyObject* self, PyObject* args) {
-	Py_buffer data;
-
-	if(!PyArg_ParseTuple(args, "y*", &data)) 
-		return NULL;
-
-	std::vector<uint8_t> ret;
-	if(!th_unlzss_impl(static_cast<uint8_t*>(data.buf), data.len, ret)) {
-		PyErr_SetString(PyExc_ValueError, "The provided LZSS data is invalid or the parameters are incorrect");
+		std::vector<uint8_t> _buf((uint8_t*)buf.buf, (uint8_t*)buf.buf + buf.len);
+		try {
+			th_decrypt_impl(_buf, block_size, static_cast<uint8_t>(base), static_cast<uint8_t>(add));
+		} catch(std::out_of_range& e) {
+			PyErr_SetString(PyExc_IndexError, e.what());
+			return NULL;
+		}
+		assert(buf.len == _buf.size());
+		memcpy(buf.buf, _buf.data(), buf.len);
+		Py_RETURN_NONE;
+	} catch(std::bad_alloc& e) {
+		PyErr_SetString(PyExc_MemoryError, e.what());
 		return NULL;
 	}
-	return Py_BuildValue("y#", ret.data(), ret.size());
+}
+
+static PyObject *
+th_unlzss(PyObject* self, PyObject* args) {
+	try {
+		Py_buffer data;
+
+		if(!PyArg_ParseTuple(args, "y*", &data)) 
+			return NULL;
+
+		try {
+			auto ret = th_unlzss_impl(static_cast<uint8_t*>(data.buf), data.len);
+			return Py_BuildValue("y#", ret.data(), ret.size());
+		} catch(std::logic_error& e) {
+			PyErr_SetString(PyExc_ValueError, e.what());
+		}
+
+	} catch(std::bad_alloc& e) {
+		PyErr_SetString(PyExc_MemoryError, e.what());
+		return NULL;
+	}	
 }
 
 static PyMethodDef thReplayMethods[] = {
