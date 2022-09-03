@@ -11,5 +11,6 @@ setup(name="tsadecode",
         name="tsadecode",
         sources=["tsadecode.cpp"],
         language="C++",
+        extra_compile_args=['-std=c++11'],
         extra_link_args=["-lstdc++"]
       )])
