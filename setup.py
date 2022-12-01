@@ -1,7 +1,7 @@
 from setuptools import setup, Extension
 
 setup(name="tsadecode",
-      version="0.3",
+      version="0.4",
       description="Decoding utilities for ZUN data",
       author="32th-System",
       author_email="intensonat@gmail.com",
