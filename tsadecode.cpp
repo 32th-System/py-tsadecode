@@ -29,13 +29,13 @@ th_decrypt_impl(std::vector<uint8_t>& buffer, size_t block_size, uint8_t base, u
 		tp2 = p + block_size - 2;
 		hf = (block_size + (block_size & 0x1)) / 2;
 		for (i = 0; i < hf; ++i, ++p) {
-			buffer[tp1] = tbuf[p] ^ base;
+			buffer.at(tp1) = tbuf.at(p) ^ base;
 			base += add;
 			tp1 -= 2;
 		}
 		hf = block_size / 2;
 		for (i = 0; i < hf; ++i, ++p) {
-			buffer[tp2] = tbuf[p] ^ base;
+			buffer.at(tp2) = tbuf.at(p) ^ base;
 			base += add;
 			tp2 -= 2;
 		}
@@ -66,7 +66,7 @@ th_unlzss_impl(const uint8_t* in, size_t len, lzss_params_t& params = ZUN_LZSS_P
                 if (idx >= data.size())
                     return ret;
                 if (data[idx]) {
-                    ret |= 1 << (n - 1 - i);
+                    ret |= 1 << (n - i - 1);
                 }
                 idx++;
             }
@@ -121,7 +121,7 @@ th_unlzss_impl(const uint8_t* in, size_t len, lzss_params_t& params = ZUN_LZSS_P
     }
 
     if(input_bits.data.size() != input_bits.idx) {
-		throw std::logic_error("Error: the provided LZSS data is invalid or the LZSS parameters are wrong");
+		throw std::runtime_error("The provided LZSS data is invalid or the LZSS parameters are wrong");
 	}
 
     return output_bytes;
@@ -137,7 +137,7 @@ th06_decrypt(PyObject* self, PyObject* args) {
 	Py_RETURN_NONE;
 }
 
-static PyObject *
+static PyObject*
 th_decrypt(PyObject* self, PyObject* args) {
 	try {
 		Py_buffer buf;
@@ -172,8 +172,9 @@ th_unlzss(PyObject* self, PyObject* args) {
 		try {
 			auto ret = th_unlzss_impl(static_cast<uint8_t*>(data.buf), data.len);
 			return Py_BuildValue("y#", ret.data(), ret.size());
-		} catch(std::logic_error& e) {
+		} catch(std::runtime_error& e) {
 			PyErr_SetString(PyExc_ValueError, e.what());
+			return NULL;
 		}
 
 	} catch(std::bad_alloc& e) {
