@@ -21,7 +21,8 @@ th_decrypt_impl(std::vector<uint8_t>& buffer, size_t block_size, uint8_t base, u
 	size_t i, p = 0, tp1, tp2, hf, left = buffer.size();
 	if ((left % block_size) < (block_size / 4))
 		left -= left % block_size;
-	left -= buffer.size() & 1;
+	if(left)
+		left -= buffer.size() & 1;
 	while (left) {
 		if (left < block_size)
 			block_size = left;
