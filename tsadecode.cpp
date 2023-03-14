@@ -5,14 +5,12 @@
 #include <vector>
 #include <stdexcept>
 
-static size_t
-th06_decrypt_impl(uint8_t* buffer, const size_t length, uint8_t key) {
-	size_t i;
-	for(i = 0; i < length; i++) {
+static void
+th06_decrypt_impl(uint8_t* buffer, const size_t length, uint8_t key, const size_t start) {
+	for(size_t i = start; i < length; i++) {
 		buffer[i] -= key;
 		key += 7;
 	}
-	return i;
 }
 
 static void
@@ -128,13 +126,18 @@ th_unlzss_impl(const uint8_t* in, size_t len, lzss_params_t& params = ZUN_LZSS_P
     return output_bytes;
 }
 
+char* kwlist[] = {strdup("buf"), strdup("key"), strdup("start"), nullptr};
+
 static PyObject*
-th06_decrypt(PyObject* self, PyObject* args) {
+th06_decrypt(PyObject* self, PyObject* args, PyObject* kwargs) {
 	Py_buffer buf;
 	Py_ssize_t key;
-	if(!PyArg_ParseTuple(args, "y*n", &buf, &key) || buf.readonly)
+	Py_ssize_t start = 0;
+
+	if(!PyArg_ParseTupleAndKeywords(args, kwargs, "y*n|n", kwlist, &buf, &key, &start) || buf.readonly)
 		return NULL;
-	th06_decrypt_impl(static_cast<uint8_t*>(buf.buf), buf.len, static_cast<uint8_t>(key));
+
+	th06_decrypt_impl(static_cast<uint8_t*>(buf.buf), buf.len, static_cast<uint8_t>(key), start);
 	Py_RETURN_NONE;
 }
 
@@ -185,7 +188,7 @@ th_unlzss(PyObject* self, PyObject* args) {
 }
 
 static PyMethodDef thReplayMethods[] = {
-	{ "decrypt06", th06_decrypt, METH_VARARGS,
+	{ "decrypt06", (PyCFunction)th06_decrypt, METH_VARARGS | METH_KEYWORDS,
 	"Perform a decryption using the encryption algorithm from TH06" },
 	{ "decrypt", th_decrypt, METH_VARARGS,
 	"Perform a decryption using ZUN's newer encryption algorithm introduced in TH08"},
@@ -201,6 +204,10 @@ static struct PyModuleDef thReplayModule = {
 	-1,
 	thReplayMethods
 };
+
+void free_kwlist() {
+	for(size_t i = 0; kwlist[i]; i++) free(kwlist[i]);
+}
 
 PyMODINIT_FUNC
 PyInit_tsadecode() {
